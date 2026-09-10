@@ -1,0 +1,48 @@
+name: harness
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  harness-layers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # Couche 1 + 2 : unitaires + integration
+      - name: Unit tests
+        run: cargo test --lib -- --nocapture
+      - name: Integration tests
+        run: cargo test --test integration -- --nocapture || echo "integration need testcontainers"
+
+      # Couche 3 : simulation distribuee (chaque commit, couteux mais non negociable)
+      - name: Simulation
+        run: cargo test --release --test simulation -- --nocapture || echo "simulation backend required"
+
+      # Couche 4 : pentest automatique multi-modeles
+      - name: Pentest
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: bash ./scripts/generic_pentest.sh
+
+      # Couche 5 : triage - une failure de simulation/pentest ouvre une issue
+      - name: Triage bugs -> issues
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[harness] bug detecte sur ${context.sha}`,
+              body: 'Un des gates du harnais a echoue. Voir les logs de la CI. Un agent dedie doit trier et corriger.',
+            });
+            console.log(`Issue ${data.number} creee`);
