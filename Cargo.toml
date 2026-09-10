@@ -1,0 +1,27 @@
+[package]
+name = "agent_ai_harness"
+version = "0.1.0"
+edition = "2021"
+description = "Le harNAIS de confiance autour du code genere par IA (specs + tests + simulation + pentest)"
+
+[lib]
+name = "agent_ai_harness"
+path = "src/lib.rs"
+
+[dependencies]
+# Testcontainers pour la couche 2 (integration) :
+# testcontainers = "0.15"
+# sqlx = { version = "0.7", features = ["runtime-tokio", "postgres", "tls-rustls"] }
+# tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+# testcontainers = "0.15"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+
+[profile.dev]
+debug = 1
+overflow-checks = true
